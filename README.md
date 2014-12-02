@@ -31,4 +31,9 @@ Power consumption:
   Using boards acquired from China via Ebay (with power LED removed), this project has 
   been measured at 240 microamps current draw while in powerdown. Full on current draw 
   with relay engaged is ~70mA, full on current draw with relay open is ~32mA. 
+
+Using the CLI:
+  Connect the Arduino Micro board via USB and establish a serial connection at 9600bps 
+  within PD_WAIT. Press enter to activate the CLI and reset the PD_WAIT timer. Type
+  help for a list of commands and their use.
 </pre>
