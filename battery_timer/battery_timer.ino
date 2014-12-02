@@ -3,22 +3,32 @@ __asm volatile ("nop");
 #endif
 
 // Battery Timer sketch for Arduino Micro/Battery Timer PCB (c) 2014 David McKenzie 
+//#define DEBUG // status on serial console (~3kb), cant be used with CLI
+#define CLI   // include FreakLabs CLI support
 
 #include "LowPower.h"
 #include <avr/power.h>
+#include <EEPROM.h>
+#ifdef CLI
+#include "Cmd.h"
+#endif
 
-//#define DEBUG // status on serial console (~3kb)
-//#define CLI   // include CLI support
+struct _params_t
+{
+  int   CHECK;
+  int   OFF_WAIT;
+  int   PD_WAIT;
+  int   VDIV_CONST;
+  float VOLTAGE_LOW;
+  float VOLTAGE_ON;
+} params = {80, 120, 45, 3, 10.8, 13.2}; // default values, changing the check byte will reset saved settings
 
-const int VOLTAGE_PIN = A3; // voltage divider is connected here
-const int RELAY_PIN   = 2;  // relay driver transistor base is connected here
+const int VOLTAGE_PIN  = A3; // voltage divider is connected here
+const int RELAY_PIN    = 2;  // relay driver transistor base is connected here
+const int EEPROM_START = 8;  // start address in eeprom, changing this will reset saved settings
 
-// initial values, cli configurable
-int   OFF_WAIT    = 120;   // 2 minute timeout
-int   PD_WAIT     = 45;    // 45 second wait until initial powerdown (when enabled)
-float VDIV_CONST  = 3;     // R2 = 200k, R1 = 100k
-float VOLTAGE_LOW = 11.5;  // immediately cut relay below this voltage
-float VOLTAGE_ON  = 13.5;  // engage relay at this voltage
+float volts = 0.0; // voltage now global so it is accessable from cli
+
 
 // states
 bool relayState = false;
@@ -27,11 +37,22 @@ bool delaySwitch = false;
 bool initialState = true;
 
 unsigned long time = 0; // we can use millis because we only care about it when not in low power mode
+unsigned long pd_time = 0; // this allows us reset initial mode by PD_WAIT when CLI is active
 
 void setup()
 {
-#ifdef DEBUG || CLI
+// check for params in eeprom
+  loadParams();
+#if defined(DEBUG)
   Serial.begin(9600);
+#elif defined(CLI)
+  cmdInit(9600);
+  cmdAdd("help", help);
+  cmdAdd("status", bstatus);
+  cmdAdd("list", list);
+  cmdAdd("set", set);  
+  cmdAdd("save", save);
+  cmdAdd("sleep", sleep);
 #endif
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW); // make sure relay is off state
@@ -54,49 +75,52 @@ void loop()
   
   if(delaySwitch && relayState) {
     // check if delayed off has expired    
-    if(now > (time + (1000 * (unsigned long)OFF_WAIT))) {
+    if(now > (time + (1000 * (unsigned long)params.OFF_WAIT))) {
       // shut that whole thing down
       relayOff();
     }
   }
   
   // read the analog pin and convert to volts
-  float volts = ((float)(analogRead(VOLTAGE_PIN) * 5) / 1024.0) * VDIV_CONST;    
+  volts = ((float)(analogRead(VOLTAGE_PIN) * 5) / 1024.0) * params.VDIV_CONST;    
 
-  if(volts >= VOLTAGE_ON) { 
+  if(volts >= params.VOLTAGE_ON) { 
     if(!relayState)  // charging system is on, relay on
       relayOn();
     if(delaySwitch)  // clear delay switch 
       delaySwitch = false;
-  } else if(volts >= VOLTAGE_LOW && volts < VOLTAGE_ON) {
+  } else if(volts >= params.VOLTAGE_LOW && volts < params.VOLTAGE_ON) {
     // charging system off, check if relay is on and start the timer if it hasn't already been started.
     if(relayState && !delaySwitch) {  
       time = now;
       delaySwitch = true;
     }
-  } else if(volts < VOLTAGE_LOW) {
+  } else if(volts < params.VOLTAGE_LOW) {
     // low voltage, turn the relay off now
     relayOff();
   }
 
-  if(initialState && (now > (1000 * (unsigned long)PD_WAIT)))
+  if(initialState && (now - pd_time > (1000 * (unsigned long)params.PD_WAIT)))
   {
     initialState = false;
     if(!relayState)
       powerDown = true;
   }
 
-#ifdef CLI
-// TODO: check serial buffer for commands
-#endif
-
-   if(!powerDown || initialState) // wait for 500ms if we aren't powering down
-   {
+  if(!powerDown || initialState) // wait for 500ms if we aren't powering down
+  {
 #ifdef DEBUG
-     printStatus(nowm, volts);
+    printStatus(nowm, volts);
 #endif 
-     delay(500);
-   }
+#ifdef CLI
+    if(Serial.available()) {
+      // CLI is active, reset pd_time to now to inhibit powerdown by another PD_WAIT
+      pd_time = now;
+    }
+    cmdPoll();
+#endif
+    delay(500);
+  }
 }
 
 void relayOn()
@@ -117,19 +141,98 @@ void relayOff()
   powerDown = true; 
 }
 
-#ifdef DEBUG
-void printStatus(unsigned long now, float volts)
+#if defined(DEBUG) || defined(CLI)
+void printStatus(unsigned long now, float v)
 {
   char buf1[8];
   char buf2[128];
-  dtostrf(volts, 4, 2, buf1);
+  dtostrf(v, 4, 2, buf1);
   snprintf(buf2, sizeof(buf2), "%lu %lu relay: %d, delay: %d, i: %d, pD: %d, V: %s\n\r",
               now, micros()-now, relayState, delaySwitch, initialState, powerDown, buf1);
   Serial.print(buf2);
 }
 #endif
 
+void loadParams()
+{
+  // load params from eeprom
+  if(EEPROM.read(EEPROM_START) == params.CHECK) { // check for our CHECK byte is the same as the default
+    for (unsigned int i=0; i<sizeof(params); i++)
+      *((char*)&params+i) = EEPROM.read(EEPROM_START + i);
+  } else {
+    // params are uninitialized, write the defaults to memory
+    saveParams(); 
+  }
+}
+
+void saveParams()
+{
+   for(unsigned int i=0; i<sizeof(params); i++)
+     EEPROM.write(EEPROM_START+i,*((char*)&params+i));
+}
+
 #ifdef CLI
-//do serial stuff
+void help(int argc, char **args)
+{
+  Serial.println("Command list:");
+  Serial.println("  help                - this message");
+  Serial.println("  status              - brief status");
+  Serial.println("  list                - list parameters");
+  Serial.println("  set <param> <value> - set parameter for this session");
+  Serial.println("  save                - save parameters to eeprom");
+  Serial.println("  sleep               - immediately enter powerdown mode (will end USB shell)");
+}
+
+void bstatus(int argc, char **args)
+{
+  printStatus(micros(),volts);
+}
+
+void list(int argc, char **args)
+{
+  char buf[80];
+  char v1[8];
+  char v2[8];
+  dtostrf(params.VOLTAGE_LOW, 4, 2, v1);
+  dtostrf(params.VOLTAGE_ON, 4, 2, v2);
+  snprintf(buf, sizeof(buf), "OFF_WAIT: %d\n\rPD_WAIT: %d\n\rVOLTAGE_LOW: %s\n\rVOLTAGE_ON: %s\n\r",
+            params.OFF_WAIT, params.PD_WAIT, v1, v2);
+  Serial.print(buf);
+}
+
+void set(int argc, char **args)
+{
+  if(argc == 3) {
+    char *p = args[1];
+    if(!strcmp(p, "OFF_WAIT")) {
+      params.OFF_WAIT = atoi(args[2]);
+    } else if(!strcmp(p,"PD_WAIT")) {
+      params.PD_WAIT = atoi(args[2]);
+    } else if(!strcmp(p,"VOLTAGE_LOW")) {
+      params.VOLTAGE_LOW = atof(args[2]);
+    } else if(!strcmp(p,"VOLTAGE_ON")) {
+      params.VOLTAGE_ON = atof(args[2]);
+    } else {
+      Serial.println("Error: unknown parameter. Try list. Parameters are case sensitive.");  
+      return;
+    }
+    Serial.println("Success");
+  } else {
+    Serial.println("Error: syntax: set <param> <value>");
+  }  
+}
+
+void save(int argc, char **args)
+{
+  saveParams(); 
+  Serial.println("Success");
+}
+
+void sleep(int argc, char **args)
+{
+  Serial.println("Setting sleep mode, goodbye!");
+  powerDown = true;
+  initialState = false;
+}
 #endif
 
