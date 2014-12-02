@@ -11,10 +11,10 @@ Theory of operation:
   read these values. Relay is turned off unless voltage is above VOLTAGE_ON. Initially,
   the firmware remains in a fully on initial state until PD_WAIT seconds elapse. Data 
   received via the CLI resets this timer. After PD_WAIT seconds, the board goes into 
-  full powerdown and wakes up every second to check sense the input voltage. If the 
+  full powerdown and wakes up every second to sense the input voltage. If the 
   voltage is sensed to be greater than or equal to VOLTAGE_ON, the relay is engaged 
   and powerdown mode is disabled. Once the voltage drops below VOLTAGE_ON, the relay 
-  will remain engaged until OFF_WAIT seconds elapse. Should the voltage drop below 
+  will remain engaged until OFF_WAIT seconds elapse. Should the voltage drop below
   VOLTAGE_LOW at any time, the relay will immediately be disengaged and powerdown mode 
   will be activated.
   
