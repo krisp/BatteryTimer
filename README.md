@@ -20,14 +20,15 @@ Theory of operation:
   
 Parameters:
   VOLTAGE_ON  : voltage (float) at which the relay engages
-  VOLTAGE_LOW : voltage (float) at which the relay is immediately disengaged and powerdown 
-                mode activated 
-  OFF_WAIT    : time in seconds for the relay to remain engaged after voltage drops below 
-                VOLTAGE_ON
-  PD_WAIT     : time in seconds to wait initially before entering powerdown mode. This allows 
-                the user to connect via CLI before USB is disabled.
+  VOLTAGE_LOW : voltage (float) at which the relay is immediately disengaged and 
+                powerdown mode activated 
+  OFF_WAIT    : time in seconds for the relay to remain engaged after voltage drops 
+                below VOLTAGE_ON
+  PD_WAIT     : time in seconds to wait initially before entering powerdown mode. 
+                This allows the user to connect via CLI before USB is disabled.
   
 Power consumption:
-  Using boards acquired from China via Ebay (with power LED removed), this project has been measured at 240 microamps current draw while in powerdown.
-  Full on current draw with relay engaged is ~70mA, full on current draw with relay open is ~32mA. 
+  Using boards acquired from China via Ebay (with power LED removed), this project has 
+  been measured at 240 microamps current draw while in powerdown. Full on current draw 
+  with relay engaged is ~70mA, full on current draw with relay open is ~32mA. 
 </pre>
