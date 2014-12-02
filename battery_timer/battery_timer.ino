@@ -90,12 +90,13 @@ void loop()
 // TODO: check serial buffer for commands
 #endif
 
-#ifdef DEBUG
-  if(!powerDown) // don't bother doing this in powerdown state because USB is off
-    printStatus(nowm, volts);
-#endif 
    if(!powerDown || initialState) // wait for 500ms if we aren't powering down
-    delay(500);
+   {
+#ifdef DEBUG
+     printStatus(nowm, volts);
+#endif 
+     delay(500);
+   }
 }
 
 void relayOn()
