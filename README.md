@@ -19,13 +19,14 @@ Theory of operation:
   will be activated.
   
 Parameters:
-  VOLTAGE_ON  : voltage (float) at which the relay engages
+  VOLTAGE_ON  : voltage (float) at which the relay engages. Default: 13.2
   VOLTAGE_LOW : voltage (float) at which the relay is immediately disengaged and 
-                powerdown mode activated 
+                powerdown mode activated. Default: 10.8
   OFF_WAIT    : time in seconds for the relay to remain engaged after voltage drops 
-                below VOLTAGE_ON
+                below VOLTAGE_ON. Default: 120 (2 minutes)
   PD_WAIT     : time in seconds to wait initially before entering powerdown mode. 
                 This allows the user to connect via CLI before USB is disabled.
+				Default: 45 seconds
   
 Power consumption:
   Using boards acquired from China via Ebay (with power LED removed), this project has 
