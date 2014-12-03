@@ -35,5 +35,6 @@ Power consumption:
 Using the CLI:
   Connect the Arduino Micro board via USB and establish a serial connection at 9600bps 
   within PD_WAIT. Press enter to activate the CLI and reset the PD_WAIT timer. Type
-  help for a list of commands and their use.
+  help for a list of commands and their use. Note that changes to parameters are not
+  saved until the "save" command is issued.
 </pre>
