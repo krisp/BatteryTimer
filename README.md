@@ -27,15 +27,27 @@ Parameters:
   PD_WAIT     : time in seconds to wait initially before entering powerdown mode. 
                 This allows the user to connect via CLI before USB is disabled.
 				Default: 45 seconds
+  VDROP_DETECT: Flag to enable voltage drop detection to reset delay timer (1 or 0)
+  VDROP_PCT   : Multiplied by median voltage and then compared to current voltage, 
+                if voltage is less it will reset the timer (in-use detect). Default
+				value is 0.99 (which is 1% drop or 0.115v at 11.5v)
   
 Power consumption:
-  Using Arduino Micro (atmega32u4) boards acquired from China via Ebay (with power LED removed), this project has 
-  been measured at 240 microamps current draw while in powerdown. Full on current draw 
-  with relay engaged is ~70mA, full on current draw with relay open is ~32mA. 
+  Using Arduino Micro (atmega32u4) boards acquired from China via Ebay (with power LED 
+  removed), this project has been measured at 240 microamps current draw while in 
+  powerdown. Full on current draw with relay engaged is ~70mA, full on current draw with 
+  relay open is ~32mA. 
 
 Using the CLI:
   Connect the Arduino Micro board via USB and establish a serial connection at 9600bps 
   within PD_WAIT. Press enter to activate the CLI and reset the PD_WAIT timer. Type
   help for a list of commands and their use. Note that changes to parameters are not
   saved until the "save" command is issued.
+  
+Voltage drop detection:
+  The current voltage is added to an array used to compute the running median voltage
+  when the system is in OFF_WAIT. The median voltage is multiplied by VDROP_PCT and
+  compared to the current voltage reading. If the current voltage reading is less 
+  than VDROP_PCT*median_voltage, the off timer is reset and the controlled device will
+  remain powered on for another OFF_WAIT seconds.
 </pre>

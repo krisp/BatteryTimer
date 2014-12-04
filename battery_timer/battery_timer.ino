@@ -20,10 +20,11 @@ struct _params_t
   int   OFF_WAIT;
   int   PD_WAIT;
   int   VDIV_CONST;
+  int   VDROP_DETECT;
   float VDROP_PCT;
   float VOLTAGE_LOW;
   float VOLTAGE_ON;
-} params = {81, 120, 45, 3, 0.99, 10.8, 13.2}; // default values, changing the check byte will reset saved settings
+} params = {82, 120, 45, 3, 1, 0.99, 10.8, 13.2}; // default values, changing the check byte will reset saved settings
 
 const int VOLTAGE_PIN  = A3; // voltage divider is connected here
 const int RELAY_PIN    = 2;  // relay driver transistor base is connected here
@@ -46,8 +47,7 @@ void setup()
 {
 // check for params in eeprom
   loadParams();
-
-#if defined(CLI) || defined(DEBUG)
+#ifdef CLI
   cmdInit(9600);
   cmdAdd("help", help);
   cmdAdd("status", bstatus);
@@ -55,6 +55,8 @@ void setup()
   cmdAdd("set", set);  
   cmdAdd("save", save);
   cmdAdd("sleep", sleep);
+#elif defined(DEBUG)
+  Serial.begin(9600);
 #endif
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW); // make sure relay is off state
@@ -80,13 +82,14 @@ void loop()
   voltmedian.add(volts);
   
   if(delaySwitch && relayState) {
-    // check for a voltage drop 1% lower than the median voltage and reset the delay timer (in use detection)
-    if(volts < (params.VDROP_PCT*voltmedian.getMedian()))
-    {
-      time = now; 
+    // check for a voltage drop less than VDROP_PCT*median and reset the delay timer (in-use detection)
+    if(params.VDROP_DETECT) {
+      if(volts < (params.VDROP_PCT*voltmedian.getMedian())) {
+        time = now; 
 #ifdef DEBUG
-      Serial.println("Voltage drop detected, resetting timer");
+        Serial.println("Voltage drop detected, resetting timer");
 #endif
+      }
     }
     // check if delayed off has expired    
     if(now > (time + (1000 * (unsigned long)params.OFF_WAIT))) {
@@ -204,15 +207,15 @@ void bstatus(int argc, char **args)
 
 void list(int argc, char **args)
 {
-  char buf[90];
+  char buf[100];
   char v1[8];
   char v2[8];
   char v3[8];
   dtostrf(params.VOLTAGE_LOW, 4, 2, v1);
   dtostrf(params.VOLTAGE_ON, 4, 2, v2);
   dtostrf(params.VDROP_PCT, 4, 3, v3);
-  snprintf(buf, sizeof(buf), "OFF_WAIT: %d\n\rPD_WAIT: %d\n\rVOLTAGE_LOW: %s\n\rVOLTAGE_ON: %s\n\rVDROP_PCT: %s\n\r",
-            params.OFF_WAIT, params.PD_WAIT, v1, v2, v3);
+  snprintf(buf, sizeof(buf), "OFF_WAIT: %d\n\rPD_WAIT: %d\n\rVOLTAGE_LOW: %s\n\rVOLTAGE_ON: %s\n\rVDROP_DETECT: %d\n\rVDROP_PCT: %s\n\r",
+            params.OFF_WAIT, params.PD_WAIT, v1, v2, params.VDROP_DETECT, v3);
   Serial.print(buf);
 }
 
@@ -230,6 +233,8 @@ void set(int argc, char **args)
       params.VOLTAGE_ON = atof(args[2]);
     } else if(!strcmp(p,"VDROP_PCT")) {
       params.VDROP_PCT = atof(args[2]);
+    } else if(!strcmp(p,"VDROP_DETECT")) {
+      params.VDROP_DETECT = atoi(args[2]);
     } else {
       Serial.println("Error: unknown parameter. Try list. Parameters are case sensitive.");  
       return;
