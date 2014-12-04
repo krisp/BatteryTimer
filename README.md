@@ -46,8 +46,8 @@ Using the CLI:
   
 Voltage drop detection:
   The current voltage is added to an array used to compute the running median voltage
-  when the system is in OFF_WAIT. The median voltage is multiplied by VDROP_PCT and
-  compared to the current voltage reading. If the current voltage reading is less 
+  when the system is in delayed off state. The median voltage is multiplied by VDROP_PCT 
+  and compared to the current voltage reading. If the current voltage reading is less 
   than VDROP_PCT*median_voltage, the off timer is reset and the controlled device will
   remain powered on for another OFF_WAIT seconds.
 </pre>
