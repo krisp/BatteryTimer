@@ -120,9 +120,6 @@ void loop()
 
   if(!powerDown || initialState) // wait for 500ms if we aren't powering down
   {
-#ifdef DEBUG
-    printStatus(nowm, volts);
-#endif 
 #ifdef CLI
     if(Serial.available()) {
       // CLI is active, reset pd_time to now to inhibit powerdown by another PD_WAIT
@@ -130,6 +127,9 @@ void loop()
     }
     cmdPoll();
 #endif
+#ifdef DEBUG
+    printStatus(nowm, volts);
+#endif 
     delay(500);
   }
 }
@@ -152,14 +152,16 @@ void relayOff()
   powerDown = true; 
 }
 
+
 #if defined(DEBUG) || defined(CLI)
 void printStatus(unsigned long now, float v)
 {
+  unsigned long n = micros();
   char buf1[8];
   char buf2[128];
   dtostrf(v, 4, 2, buf1);
   snprintf(buf2, sizeof(buf2), "%lu %lu relay: %d, delay: %d, i: %d, pD: %d, V: %s V(m): ",
-              now, micros()-now, relayState, delaySwitch, initialState, powerDown, buf1);
+              now, n-now, relayState, delaySwitch, initialState, powerDown, buf1);
   Serial.print(buf2);
   Serial.println(voltmedian.getMedian());  
 }
@@ -202,13 +204,13 @@ void bstatus(int argc, char **args)
 
 void list(int argc, char **args)
 {
-  char buf[80];
+  char buf[90];
   char v1[8];
   char v2[8];
   char v3[8];
   dtostrf(params.VOLTAGE_LOW, 4, 2, v1);
   dtostrf(params.VOLTAGE_ON, 4, 2, v2);
-  dtostrf(params.VDROP_PCT, 4, 2, v3);
+  dtostrf(params.VDROP_PCT, 4, 3, v3);
   snprintf(buf, sizeof(buf), "OFF_WAIT: %d\n\rPD_WAIT: %d\n\rVOLTAGE_LOW: %s\n\rVOLTAGE_ON: %s\n\rVDROP_PCT: %s\n\r",
             params.OFF_WAIT, params.PD_WAIT, v1, v2, v3);
   Serial.print(buf);
