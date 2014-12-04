@@ -29,7 +29,7 @@ Parameters:
 				Default: 45 seconds
   
 Power consumption:
-  Using boards acquired from China via Ebay (with power LED removed), this project has 
+  Using Arduino Micro (atmega32u4) boards acquired from China via Ebay (with power LED removed), this project has 
   been measured at 240 microamps current draw while in powerdown. Full on current draw 
   with relay engaged is ~70mA, full on current draw with relay open is ~32mA. 
 
